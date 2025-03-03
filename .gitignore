@@ -1,0 +1,6 @@
+.env
+.cache
+downloads/
+champions.py
+data.json
+.cache
