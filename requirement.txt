@@ -1,0 +1,12 @@
+discord.py
+yt-dlp
+python-dotenv
+spotipy
+SpeechRecognition
+textblob
+requests
+openai
+lyricsgenius
+gtts
+pydub
+aiohttp
