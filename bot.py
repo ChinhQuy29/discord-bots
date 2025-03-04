@@ -64,6 +64,19 @@ def get_queue(guild_id):
         queues[guild_id] = []
     return queues[guild_id]
 
+def get_champion_by_id(champion_id):
+    for champ_name, champ_data in champions["data"].items():
+        if champ_data["key"] == str(champion_id):
+            return champ_name
+    return None 
+
+def get_latest_version() -> str:
+    versions_url = "https://ddragon.leagueoflegends.com/api/versions.json"
+    response = requests.get(versions_url).json()
+    if not response:
+        return None
+    return response[0]
+
 @bot.event
 async def on_ready():
     print(f'✅ Logged in as {bot.user}')
@@ -515,9 +528,8 @@ async def mastery(ctx, *, game_name_tag_line: str):
     mastery_list = []
     for i in range(len(champions_list)):
         champion_id = int(champions_list[i]["championId"])
-        for champ_name, _ in champions["data"].items():
-            if int(champions["data"][champ_name]["key"]) == champion_id:
-                mastery_list.append((champ_name, champions_list[i]["championLevel"], champions_list[i]["championPoints"]))
+        champ_name = get_champion_by_id(champion_id)
+        mastery_list.append((champ_name, champions_list[i]["championLevel"], champions_list[i]["championPoints"]))
     if not mastery_list:
         await ctx.send("❌ No mastery data found for the provided Game Name and Tagline.")
         return
@@ -575,10 +587,37 @@ async def history(ctx, *, game_name_tag_line: str):
     await ctx.send("RECENT GAMES (LAST 5 PLAYED):\n" + message)
 
 @bot.command()
+async def champion(ctx, *, champion: str):
+    if " " in champion:
+        if champion.lower() != "jarvan iv":
+            first_word, second_word = champion.split(" ", 1)
+            champion = first_word.lower().capitalize() + second_word.lower().capitalize()
+        else:
+            first_word, second_word = champion.split(" ", 1)
+            champion = first_word.lower().capitalize() + second_word.upper()
+    else:
+        champion = champion.lower().capitalize()
+    latest_version = get_latest_version()
+    if not latest_version:
+        await ctx.send("❌ Error getting the latest version of League of Legends.")
+        return
+    champ_icon_url = f"https://ddragon.leagueoflegends.com/cdn/{latest_version}/img/champion/{champion}.png"
+    champ_icon_response = requests.get(champ_icon_url)
+    if champ_icon_response.status_code != 200:
+        await ctx.send(f"❌ Error getting the icon of {champion}.")
+        return
+    embed = discord.Embed(title=f"Champion: {champion}", color=discord.Color.blue())
+    embed.set_image(url=champ_icon_url)
+    embed.add_field(name="Winrate", value="50%", inline=False)
+    embed.add_field(name="Items", value="[Infinity Edge](champ_icon_url)", inline=False)
+    embed.add_field(name="Skill Order", value="Q -> E -> W -> R", inline=False)
+    await ctx.send(embed=embed)
+
+@bot.command()
 async def spectate(ctx, *, game_name_tag_line: str):
     """Spectate a live game from a player"""
     try:
-        game_name, tag_line= game_name_tag_line.split("|", 1)
+        game_name, tag_line= game_name_tag_line.split("#", 1)
     except ValueError:
         await ctx.send("❌ Please provide both game name and tag line of the player you want to spectate.")
         return
@@ -595,8 +634,42 @@ async def spectate(ctx, *, game_name_tag_line: str):
         return
     puuid = get_account_response["puuid"]
     spectate_url = f"https://na1.api.riotgames.com/lol/spectator/v5/active-games/by-summoner/{puuid}"
-    spectate_response = requests.get(spectate_url, headers=headers).json()
-    # if not spectate_response or 
+    spectate_response = requests.get(spectate_url, headers=headers)
+    if not spectate_response or spectate_response.status_code != 200:
+        await ctx.send("❌ Unable to retrieve match data. The player may not be currently engaged in a game.")
+        return
+    spectate_data = spectate_response.json()
+    game_mode = spectate_data["gameMode"]
+    participants = spectate_data["participants"]
+    members_per_team = int(len(participants) / 2) 
+    champs = []
+    for i in range(members_per_team):
+        champ1_id = participants[i]["championId"]
+        champ2_id = participants[i + members_per_team]["championId"]
+        player1_riot_id = participants[i]["riotId"] 
+        player2_riot_id = participants[i + members_per_team]["riotId"]
+        champ1_name = get_champion_by_id(champ1_id)
+        champ2_name = get_champion_by_id(champ2_id)
+        champs.append((
+            {
+                "player_riot_id": player1_riot_id,
+                "champ_name": champ1_name
+            }, 
+            {
+                "player_riot_id": player2_riot_id,
+                "champ_name": champ2_name
+            }
+        ))
+
+    if not champs:
+        await ctx.send(f"❌ No champions found for the provided player {game_name}.")
+
+    message = f"**{game_mode}**\n"
+    for champ_pair in champs:
+        message += f"Player: {champ_pair[0]['player_riot_id']}  Champion: {champ_pair[0]['champ_name']}        Player: {champ_pair[1]['player_riot_id']}  Champion: {champ_pair[1]['champ_name']}\n"
+    await ctx.send(message)
+    
+
 
 @bot.command()
 async def gif(ctx, *, keyword: str):
