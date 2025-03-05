@@ -315,56 +315,45 @@ async def play(ctx, *, query: str):
         await ctx.send(f'🔍 Searching for: **{query}**')
         await play_audio(ctx, query)
 
-# @bot.command()
-# async def sing(ctx, *, song_title_artist_name: str):
-#     if not ctx.voice_client:
-#         if ctx.author.voice:
-#             await ctx.author.voice.channel.connect()
-#         else:
-#             await ctx.send("❌ You need to be in a voice channel to use this command.")
-#             return
+@bot.command()
+async def lyrics(ctx, *, song_title_artist_name: str):
+    try:
+        song_title, artist_name = song_title_artist_name.split("|", 1)
+    except ValueError:
+        await ctx.send("❌ Song's title and Artist's name not recognized.")
+        return
     
-#     try:
-#         song_title, artist_name = song_title_artist_name.split(" ", 1)
-#     except ValueError:
-#         await ctx.send("❌ Song's title and Artist's name not recognized.")
-#         return
-    
-#     max_retries = 3
-#     genius = lyricsgenius.Genius(GENIUS_ACCESS_TOKEN, timeout=15)
+    max_retries = 3
+    genius = lyricsgenius.Genius(GENIUS_ACCESS_TOKEN, timeout=15)
 
-#     song_lyrics = ""
-#     if not artist_name:
-#         artist_name = ""
+    song_lyrics = ""
+    if not artist_name:
+        artist_name = ""
 
-#     for attempt in range(max_retries):
-#         try:
-#             song = genius.search_song(song_title, artist_name)
+    for attempt in range(max_retries):
+        try:
+            song = genius.search_song(song_title, artist_name)
 
-#             song_title = song.title
-#             artist_name = song.artist
+            song_title = song.title
+            artist_name = song.artist
 
-#             if not song:
-#                 await ctx.send(f"❌ No results found for {song_title} by {artist_name}")
-#                 return
-#             else:
-#                 song_lyrics += song.lyrics
-#                 break
-#         except requests.exceptions.Timeout:
-#             await ctx.send(f"❌ Requests timed out. Retrying ({attempt + 1}/{max_retries})...")
-#             time.sleep(5)
-#         except Exception as e:
-#             await ctx.send(f"Error fetching lyrics for {song_title} by {artist_name}")
-#             return
+            if not song:
+                await ctx.send(f"❌ No results found for {song_title} by {artist_name}")
+                return
+            else:
+                song_lyrics += song.lyrics
+                break
+        except requests.exceptions.Timeout:
+            await ctx.send(f"❌ Requests timed out. Retrying ({attempt + 1}/{max_retries})...")
+            time.sleep(5)
+        except Exception as e:
+            await ctx.send(f"❌ Error fetching lyrics for {song_title} by {artist_name}")
+            return
 
-#     tts = gTTS(text=song_lyrics, lang="en")
-#     tts.save(f"downloads/AI {song_title}.mp3")
-#     queue = get_queue(ctx.guild.id)
-#     queue.append((f"downloads/AI {song_title}.mp3", f"AI {song_title}"))
-#     if not ctx.voice_client.is_playing():
-#         await play_next(ctx)
-#     else:
-#         await ctx.send("🎶 Added the song to the queue.")
+    if len(song_lyrics) > 2000:
+        await ctx.send(f"{song_lyrics[:1997]}...")
+    else:
+        await ctx.send(song_lyrics)
 
 
 @bot.command()
@@ -783,7 +772,7 @@ async def coach(ctx, *, message: str):
     else:
         await ctx.send("❌ You need to be in a voice channel to use this command.")
 
-    query = f"Act like you are a League of Legends coach for a team that is currently playing in a very important match, fighting for the chance to lift the tropy. Give us some coaching advice based on the current situation that we are in, which is provided by this message: {message}.Make it cohesive and coherent with around 50 words"
+    query = f"Act like you are a League of Legends coach for a team that is currently playing in a very important match, fighting for the chance to win the game and proove that we are not bad at all. Give us some coaching advice based on the current situation that we are in, which is provided by this message: {message}. I want you to be a little bit strict on critizing players but also be funny. Make it cohesive and coherent with around 50 words and don't also start with Alright team listen up"
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
         store=True,
