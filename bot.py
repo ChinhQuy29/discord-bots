@@ -17,6 +17,7 @@ import time
 from gtts import gTTS
 from pydub.playback import play
 from pydub import AudioSegment
+from bs4 import BeautifulSoup
 
 # Load champions data from a JSON file
 with open('data.json', 'r') as json_file:
@@ -69,6 +70,89 @@ def get_champion_by_id(champion_id):
         if champ_data["key"] == str(champion_id):
             return champ_name
     return None 
+
+def scrape_champion_info(champion_name):
+    url = f"https://u.gg/lol/champions/{champion_name}/build"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        return None
+    soup = BeautifulSoup(response.content, 'html.parser')
+    winrate = soup.find('div', class_="okay-tier").text.strip()
+    try:
+        list = []
+        data = soup.find_all('div', class_="text-[20px] max-sm:text-[16px] max-xs:text-[14px] font-extrabold")
+        for item in data:
+            list.append(item.text.strip())
+        if len(list) == 4:
+            return {
+                "winrate": winrate,
+                "rank": list[0] or None,
+                "pick_rate": list[1] or None,
+                "ban_rate": list[2] or None,
+                "games": list[3] or None
+            }
+        else:
+            return None
+    except Exception as e:
+        print(f"Error scraping champion info: {e}")
+        return None
+    
+def get_skill_priority(champion_name):
+    url = f"https://u.gg/lol/champions/{champion_name}/build"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        return None
+
+    soup = BeautifulSoup(response.content, 'html.parser')
+    skills_list = soup.find_all('div', "skill-label bottom-center")
+    skills_list = skills_list[len(skills_list) - 3:]
+    skill_priority = []
+    for skill in skills_list:
+        skill_priority.append(skill.text.strip())
+    if not skill_priority:
+        return {
+            "first": None,
+            "second": None,
+            "third": None
+        }
+    else:
+        return {
+            "first": skill_priority[0] or None,
+            "second": skill_priority[1] or None,
+            "third": skill_priority[2] or None
+        }
+    
+def get_recommended(champion_name):
+    recommended = {
+        "rune": None,
+        "item": None,
+    }
+    url = f"https://u.gg/lol/champions/{champion_name}/build"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        return None
+
+    soup = BeautifulSoup(response.content, 'html.parser')
+    item_div = soup.find('div', "item-image-container")
+    if item_div:
+        item_img = item_div.find("img")
+        item_alt = item_img["alt"]
+        recommended["item"] = item_alt
+    rune_div = soup.find('div', "rune-image-container")
+    if rune_div:
+        rune_img = rune_div.find("img")
+        rune_alt = rune_img["alt"]
+        recommended["rune"] = rune_alt
+    return recommended    
 
 def get_latest_version() -> str:
     versions_url = "https://ddragon.leagueoflegends.com/api/versions.json"
@@ -608,9 +692,16 @@ async def champion(ctx, *, champion: str):
         return
     embed = discord.Embed(title=f"Champion: {champion}", color=discord.Color.blue())
     embed.set_image(url=champ_icon_url)
-    embed.add_field(name="Winrate", value="50%", inline=False)
-    embed.add_field(name="Items", value="[Infinity Edge](champ_icon_url)", inline=False)
-    embed.add_field(name="Skill Order", value="Q -> E -> W -> R", inline=False)
+    champ_info = scrape_champion_info(champion.lower())
+    skill_priority = get_skill_priority(champion.lower())
+    recommended = get_recommended(champion.lower())
+    embed.add_field(name="Winrate", value=champ_info["winrate"], inline=True)
+    embed.add_field(name="Rank", value=champ_info["rank"], inline=True)
+    embed.add_field(name="Pick rate", value=champ_info["pick_rate"], inline=True)
+    embed.add_field(name="Ban rate", value=champ_info["ban_rate"], inline=True)
+    embed.add_field(name="Games played", value=champ_info["games"], inline=True)
+    embed.add_field(name="Rec.", value=f'Rune: {recommended["rune"]} \nItem: {recommended["item"]}', inline=False)
+    embed.add_field(name="Skill Priority", value=f'{skill_priority["first"]} -> {skill_priority["second"]} -> {skill_priority["third"]}', inline=False)
     await ctx.send(embed=embed)
 
 @bot.command()
