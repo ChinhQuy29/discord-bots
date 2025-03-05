@@ -10,3 +10,4 @@ lyricsgenius
 gtts
 pydub
 aiohttp
+bs4
