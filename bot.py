@@ -772,7 +772,7 @@ async def coach(ctx, *, message: str):
     else:
         await ctx.send("❌ You need to be in a voice channel to use this command.")
 
-    query = f"Act like you are a League of Legends coach for a team that is currently playing in a very important match, fighting for the chance to win the game and proove that we are not bad at all. Give us some coaching advice based on the current situation that we are in, which is provided by this message: {message}. I want you to be a little bit strict on critizing players but also be funny. Make it cohesive and coherent with around 50 words and don't also start with Alright team listen up"
+    query = f"Hãy hành động như thể bạn là huấn luyện viên Liên Minh Huyền Thoại cho một đội hiện đang chơi một trận đấu rất quan trọng, chiến đấu để giành cơ hội giành chiến thắng và chứng minh rằng chúng ta không hề tệ. Hãy cho chúng tôi một số lời khuyên về huấn luyện dựa trên tình hình hiện tại mà chúng ta đang gặp phải, được cung cấp bởi tin nhắn này: {message}. Tôi muốn bạn nghiêm khắc một chút khi chỉ trích người chơi nhưng cũng phải hài hước. Hãy làm cho nó mạch lạc và mạch lạc với khoảng 50 từ và đừng bắt đầu bằng Được rồi, đội hãy lắng nghe. Trả lời bằng tiếng Việt "
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
         store=True,
@@ -785,7 +785,7 @@ async def coach(ctx, *, message: str):
     )
     # await ctx.send(f"{completion.choices[0].message.content}")
     cleaned_title = ''.join(c for c in completion.choices[0].message.content[:30] if c.isalnum() or c in ' -_').strip()
-    tts = gTTS(text=completion.choices[0].message.content, lang="en")
+    tts = gTTS(text=completion.choices[0].message.content, lang="vi")
     tts.save(f"downloads/{cleaned_title}.mp3")
     queue = get_queue(ctx.guild.id)
     queue.append((f"downloads/{cleaned_title}.mp3", cleaned_title))
